@@ -46,6 +46,16 @@ CONSOLE_TYPES = [
 LINK_TYPES = ["ethernet", "serial"]
 
 
+def search_item_attr_in_dict(instance, item, key, value):
+    if not getattr(instance, item):
+        getattr(instance, f"get_{item}")()
+
+    try:
+        return [_p for _p in getattr(instance, item) if _p[key] == value][0]
+    except IndexError:
+        return None
+
+
 class Gns3Connector:
     """
     Connector to be use for interaction against GNS3 server controller API.
@@ -1918,3 +1928,80 @@ class Project:
 
         _response = self.connector.http_call("get", _url)
         self.drawings = _response.json()
+
+    @verify_connector_and_id
+    def create_drawings(self, svg, x, y, z):
+        """
+        updates the  drawings  of the project,
+        the Object Zone will be added
+
+        **Required Project instance attributes:**
+
+        - `svg` Scalable Vector Graphics info
+        - `coordinates: x,y,z`
+        """
+        _url = f"{self.connector.base_url}/projects/{self.project_id}/drawings"
+
+        _data = {"svg": svg, "x": x, "y": y, "z": z}
+        _response = self.connector.http_call("post", _url, json_data=_data)
+
+        return _response.json()
+
+    @verify_connector_and_id
+    def delete_drawing(self, drawing_id):
+        """
+        deletes a drwaing of the project,
+
+        **Required Project instance attributes:**
+
+        `drawing_id`
+        """
+        if not self.drawings:
+            self.get_drawings()
+
+        # _drawing = self.drawings['drawing_id'=drawing_id
+        # _drawing = [
+        #     d["drawing_id"] for d in self.drawings if d["drawing_id"] == drawing_id
+        # ]
+        _drawing = search_item_attr_in_dict(
+            instance=self, item="drawings", key="drawing_id", value=drawing_id
+        )
+        print(_drawing)
+        if _drawing is None:
+            raise ValueError("drawing not found")
+
+        _url = (
+            f"{self.connector.base_url}/projects/{self.project_id}/drawings/"
+            # f"{_drawing['drawing_id']}"
+            f"{drawing_id}"
+        )
+
+        self.connector.http_call("delete", _url)
+
+
+@dataclass(config=Config)
+class Zone:
+    # attributes
+    name: str
+    height: Optional[int]
+    width: Optional[int]
+    x: int
+    y: int
+    z: int
+
+    # drawing_attributes
+    field: Optional[str] = "#"
+    field_opacity: Optional[float] = 0.0
+    stroke: Optional[str] = "#000000"
+    stroke_dasharray: Optional[str] = "25, 25"
+    stroke_width: Optional[int] = 2
+
+    # WIP
+    def generate_svg(self):
+        pass
+
+    def calc_height_width(self, orientation="Vertical"):
+        pass
+
+    def calc_nodes_coordinates(self):
+        pass
